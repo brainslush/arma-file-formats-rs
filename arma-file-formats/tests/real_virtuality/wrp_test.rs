@@ -88,6 +88,47 @@ fn stratis_wrp() {
     assert_eq!(wrp.app_id.unwrap_or_default(), 107410);
 
     assert_eq!(wrp.map_infos.len(), 80420);
+
+    let offsets: Vec<u32> = wrp
+        .map_infos
+        .iter()
+        .scan(0, |at, m| {
+            let start = *at;
+            *at += m.byte_len();
+            Some(start)
+        })
+        .collect();
+    let total: u32 = wrp.map_infos.iter().map(MapInfo::byte_len).sum();
+    assert_eq!(total, wrp.size_of_map_info);
+
+    let leaves = wrp.map_object_offsets.leaves(256);
+    assert!(leaves.windows(2).all(|w| w[0].value_u32() <= w[1].value_u32()));
+    assert!(leaves.iter().all(|l| l.value_u32() <= total));
+
+    // Entries with coordinates must sit in the leaf whose offset range holds them.
+    let cell = wrp.layer_cell_size.unwrap();
+    let mut checked = 0;
+    for (m, &at) in wrp.map_infos.iter().zip(&offsets) {
+        let MapData::MapType1 { x, y, .. } = m.data else {
+            continue;
+        };
+        let owner = leaves
+            .iter()
+            .enumerate()
+            .rfind(|(k, l)| {
+                l.value_u32() <= at && leaves.get(k + 1).is_none_or(|n| n.value_u32() > at)
+            })
+            .map(|(_, l)| *l)
+            .unwrap();
+        let (cx, cy) = ((x / cell).floor() as i64, (y / cell).floor() as i64);
+        let (x0, y0, s) = (owner.x as i64, owner.y as i64, owner.size as i64);
+        assert!(
+            (x0 - 1..=x0 + s).contains(&cx) && (y0 - 1..=y0 + s).contains(&cy),
+            "entry at ({x}, {y}) is outside its leaf {owner:?}"
+        );
+        checked += 1;
+    }
+    assert_eq!(checked, 69185);
 }
 
 #[test]

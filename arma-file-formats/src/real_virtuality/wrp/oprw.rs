@@ -101,7 +101,8 @@ pub struct OPRW {
     #[br(args(4))]
     pub map_object_offsets: QuadTree,
 
-    size_of_map_info: u32,
+    /// Byte length of the `map_infos` block; the sum of every [`MapInfo::byte_len`].
+    pub size_of_map_info: u32,
 
     #[br(args(1, layer_size.unwrap_or_default() as usize, args,))]
     #[br(parse_with = read_compressed_array_count)]
@@ -212,6 +213,27 @@ pub struct MapInfo {
     pub id: u32,
     #[br(args(id))]
     pub data: MapData,
+}
+
+impl MapInfo {
+    /// Bytes this entry takes in the file, including its 4-byte id.
+    ///
+    /// `map_object_offsets` stores, per cell, the byte offset of the cell's first entry
+    /// within the `map_infos` block. Summing `byte_len` in file order gives each entry's
+    /// offset, which places entries without coordinates (forest, `MapType3`) on the grid.
+    pub fn byte_len(&self) -> u32 {
+        4 + match &self.data {
+            MapData::MapType1 { .. } => 12,
+            MapData::MapType2 { .. } => 36,
+            MapData::MapType3 { .. } => 24,
+            MapData::MapType4 { .. } => 40,
+            MapData::MapType5 { .. } => 20,
+            MapData::MapType35 { .. } => 29,
+            MapData::MapTypeRiver { polygon, .. } => 8 + 8 * polygon.len() as u32,
+            // Never produced by a successful parse: reading it panics after one byte.
+            MapData::Unknown { .. } => 1,
+        }
+    }
 }
 
 const MAP_TYPE_1_IDS: [u32; 16] = [0, 1, 2, 10, 11, 12, 13, 14, 15, 16, 17, 22, 23, 26, 27, 30]; // 12 (cham)
