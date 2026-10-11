@@ -50,17 +50,17 @@ pub struct OPRW {
     pub layer_size: Option<u32>,
 
     #[br(args(2))]
-    geography: QuadTree,
+    pub geography: QuadTree,
 
     #[br(args(1))]
-    sound_map: QuadTree,
+    pub sound_map: QuadTree,
 
     mountain_count: u32,
     #[br(count = mountain_count)]
     pub mountains: Vec<XYZTriplet>,
 
     #[br(args(4))]
-    rvmat_layer_index: QuadTree,
+    pub rvmat_layer_index: QuadTree,
 
     #[br(args(version < 21, layer_size.map(|ls| ls * 2).unwrap_or_default() as usize, args,))]
     #[br(parse_with = read_compressed_data_cond_count)]
@@ -106,11 +106,11 @@ pub struct OPRW {
 
     #[br(args(1, layer_size.unwrap_or_default() as usize, args,))]
     #[br(parse_with = read_compressed_array_count)]
-    unknown_bytes_0: Vec<u8>,
+    pub unknown_bytes_0: Vec<u8>,
 
     #[br(args(1, map_size.unwrap_or_default() as usize, args,))]
     #[br(parse_with = read_compressed_array_count)]
-    unknown_bytes_1: Vec<u8>,
+    pub unknown_bytes_1: Vec<u8>,
 
     pub max_object_id: u32,
 
